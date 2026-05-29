@@ -74,23 +74,14 @@ export function AboutSection() {
 
       {/* Footer note */}
       <p className="mt-12 text-center text-[13px] text-muted-foreground">
-        Built by the{" "}
+        Open source on{" "}
         <a
           href="https://github.com/StarTrail-org/PixelRAG"
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary underline-offset-2 hover:underline"
         >
-          PixelRAG
-        </a>{" "}
-        team · a visual sibling to{" "}
-        <a
-          href="https://berkeley-large-rag.github.io/RAG-DS-Serve/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary underline-offset-2 hover:underline"
-        >
-          DS Serve
+          GitHub
         </a>
       </p>
     </section>
