@@ -1,0 +1,23 @@
+name: Static Site CI
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  site:
+    name: Build status site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GH_PAT || github.token }}
+      - name: Build site
+        uses: upptime/uptime-monitor@v1.41.8
+        with:
+          command: "site"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT || github.token }}
