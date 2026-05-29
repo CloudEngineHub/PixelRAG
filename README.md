@@ -122,6 +122,11 @@ The trained adapters are published at
 [`Chrisyichuan/wiki-screenshot-embedding-lora`](https://huggingface.co/Chrisyichuan/wiki-screenshot-embedding-lora/tree/main/lora_vit/ckpt200)
 — you don't need to retrain to use the model.
 
+We also release all the training data
+([`Chrisyichuan/screenshot-training-natural-filtered-v2`](https://huggingface.co/datasets/Chrisyichuan/screenshot-training-natural-filtered-v2)),
+so you can adapt other models yourself — e.g. a larger Qwen or any other
+embedding backbone.
+
 ## License
 
 Apache-2.0
