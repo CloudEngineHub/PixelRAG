@@ -34,6 +34,15 @@ name = "pytorch-cu129"
 url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
+[tool.ruff]
+exclude = ["tmp"]
+
+[tool.ruff.lint]
+ignore = [
+    "E402",  # module-level import not at top — common in ML codebases
+    "E741",  # ambiguous variable name (l, O, I)
+]
+
 [tool.pyright]
 extraPaths = ["render/src", "embed/src", "index/src", "serve/src", "train/src"]
 venvPath = "."
