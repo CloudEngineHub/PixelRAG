@@ -13,8 +13,8 @@ Environment=AGENT_PORT=30010
 Environment=PIXELRAG_SEARCH_URL=http://localhost:30001
 Environment=CHAT_MAX_BUDGET_USD=0.50
 Environment=ALLOWED_ORIGIN=https://pixelrag.ai
-Environment=RL_PER_IP=8
-Environment=RL_GLOBAL_DAILY=300
+Environment=RL_PER_IP=12
+Environment=RL_GLOBAL_DAILY=500
 Environment=RL_MAX_CONCURRENT=3
 ExecStart=/home/yichuan/.nix-profile/bin/node /home/yichuan/visrag/web/agent-server.mjs
 Restart=always
