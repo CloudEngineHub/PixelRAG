@@ -141,7 +141,13 @@ def _parse_queries(
         user_content = []
         img = None
         if q.image:
-            img_bytes = base64.b64decode(q.image)
+            # Accept both a raw base64 string and a data URL
+            # ("data:image/png;base64,...") — strip the prefix if present,
+            # otherwise b64decode chokes on it ("Incorrect padding").
+            img_data = q.image
+            if img_data.startswith("data:"):
+                img_data = img_data.split(",", 1)[-1]
+            img_bytes = base64.b64decode(img_data)
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             user_content.append({"type": "image", "image": img})
         if q.text:
