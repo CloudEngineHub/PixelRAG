@@ -204,7 +204,25 @@ def main() -> None:
 
         # Pipe URLs from a file
         cat urls.txt | xargs pixelshot --output ./tiles --workers 8
+
+        # Chrome management (folded from the former `pixelrag-chrome`)
+        pixelshot install-chrome   # download the patched headless Chrome
+        pixelshot which-chrome     # print the active Chrome binary path
     """
+    # Chrome management subcommands — dispatch before building the render parser.
+    if len(sys.argv) > 1 and sys.argv[1] in ("install-chrome", "which-chrome"):
+        from pixelrag_render import chrome
+
+        if sys.argv[1] == "install-chrome":
+            chrome.install_chrome()
+        else:
+            try:
+                print(chrome.find_chrome(auto_install=False))
+            except FileNotFoundError as e:
+                print(str(e), file=sys.stderr)
+                sys.exit(1)
+        return
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",

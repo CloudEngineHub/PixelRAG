@@ -4,8 +4,8 @@ Downloads and manages a patched headless Chrome binary with rawFilePath
 support. Similar to `playwright install chromium`.
 
 Usage:
-    pixelrag-chrome install     # download patched headless_shell
-    pixelrag-chrome which       # print path to active binary
+    pixelshot install-chrome     # download patched headless_shell
+    pixelshot which-chrome       # print path to active binary
 
 Programmatic:
     from pixelrag_render.chrome import find_chrome, install_chrome
@@ -73,7 +73,7 @@ def find_chrome(auto_install: bool = True) -> str:
         return str(install_chrome())
 
     raise FileNotFoundError(
-        "No Chrome binary found. Run 'pixelrag-chrome install' or set CHROME_PATH."
+        "No Chrome binary found. Run 'pixelshot install-chrome' or set CHROME_PATH."
     )
 
 

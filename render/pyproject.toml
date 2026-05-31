@@ -15,7 +15,6 @@ dev = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0"]
 
 [project.scripts]
 pixelshot = "pixelrag_render.render:main"
-pixelrag-chrome = "pixelrag_render.chrome:main"
 
 [build-system]
 requires = ["hatchling"]
