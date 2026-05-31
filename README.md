@@ -47,7 +47,7 @@ Wikipedia's 8.28M articles ship as a pre-built index; the pipeline itself is gen
 ## Give Claude eyes
 
 The renderer also ships as a Claude Code plugin — the **pixelbrowse** skill. Instead of fetching
-raw HTML, Claude screenshots a page with `pixelshot` and *reads the image*, so it sees
+raw HTML, Claude screenshots a page with `pixelshot` and _reads the image_, so it sees
 charts, diagrams, tables, and layout the way a person does.
 
 ```bash
@@ -82,13 +82,13 @@ a space where visual content is retrievable.
 Capture is the standalone `pixelshot` command; the rest of the pipeline runs through the
 `pixelrag` umbrella — `pixelrag <stage>`. Install only the stages you need:
 
-| Command | What it does | Install |
-| ------- | ------------ | ------- |
-| `pixelshot` | Document → image tiles (Playwright CDP, PDF) | `pip install pixelrag` |
-| `pixelrag chunk` · `embed` · `build-index` | Tiles → vectors → FAISS index | `pip install 'pixelrag[embed]'` |
-| `pixelrag index` | Orchestrates the full pipeline: source → ingest → embed → index | `pip install 'pixelrag[index]'` |
-| `pixelrag serve` | FAISS search API (FastAPI, CPU or GPU) | `pip install 'pixelrag[serve]'` |
-| `pixelrag-train` | LoRA fine-tuning for Qwen3-VL-Embedding | `cd train && uv sync` |
+| Command                                    | What it does                                                    | Install                         |
+| ------------------------------------------ | --------------------------------------------------------------- | ------------------------------- |
+| `pixelshot`                                | Document → image tiles (Playwright CDP, PDF)                    | `pip install pixelrag`          |
+| `pixelrag chunk` · `embed` · `build-index` | Tiles → vectors → FAISS index                                   | `pip install 'pixelrag[embed]'` |
+| `pixelrag index`                           | Orchestrates the full pipeline: source → ingest → embed → index | `pip install 'pixelrag[index]'` |
+| `pixelrag serve`                           | FAISS search API (FastAPI, CPU or GPU)                          | `pip install 'pixelrag[serve]'` |
+| `pixelrag-train`                           | LoRA fine-tuning for Qwen3-VL-Embedding                         | `cd train && uv sync`           |
 
 ```
 render ←── index ──→ embed       serve (independent)       train → serve (HTTP)
