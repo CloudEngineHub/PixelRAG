@@ -169,6 +169,14 @@ We also release the full training set
 ([`Chrisyichuan/screenshot-training-natural-filtered-v2`](https://huggingface.co/datasets/Chrisyichuan/screenshot-training-natural-filtered-v2)),
 so you can adapt other backbones yourself — a larger Qwen, or any other embedding model.
 
+## Acknowledgments
+
+Thanks to [Claude Code](https://github.com/anthropics/claude-code) and
+[OpenAI Codex](https://github.com/openai/codex) for supporting open-source contributors with credits and plans,
+which we earned by working on [LEANN](https://github.com/StarTrail-org/LEANN),
+[FAISS](https://github.com/facebookresearch/faiss), and
+[Playwright](https://github.com/microsoft/playwright).
+
 ## License
 
 Apache-2.0
