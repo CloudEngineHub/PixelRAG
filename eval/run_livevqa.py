@@ -85,14 +85,10 @@ NEWS_TILES_DIR = "/opt/dlami/nvme/news_tiles"
 LIVEVQA_IMAGES_DIR = "/opt/dlami/nvme/livevqa"
 
 # Default v4 JSON (canonical LiveVQA dataset with question/options/GT/img_path)
-DEFAULT_V4_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "..",
-    "pixelrag-src",
-    "wiki-screenshot",
-    "eval",
-    "livevqa_retrieval_results_v4_multimodal.json",
-)
+# LiveVQA dataset (question/options/GT/img_path). External data input — see REPRODUCE.md.
+# Override with --v4-path. Retrieval is re-done live; only the QA fields are read from here.
+DEFAULT_V4_PATH = os.environ.get(
+    "LIVEVQA_V4_PATH", "/mnt/data/yichuan/livevqa_v4_multimodal.json")
 
 # ---------------------------------------------------------------------------
 # Data loading
