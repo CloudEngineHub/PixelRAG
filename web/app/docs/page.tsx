@@ -61,7 +61,7 @@ const endpoints: Endpoint[] = [
         ]},
       ]},
     ],
-    curlPrefix: `curl -X POST http://localhost:3000/api/search \\
+    curlPrefix: `curl -X POST https://pixelrag.ai/api/search \\
   -H "Content-Type: application/json"`,
     defaultBody: JSON.stringify({ queries: [{ text: "solar system" }], n_docs: 5 }, null, 2),
   },
@@ -84,7 +84,7 @@ const endpoints: Endpoint[] = [
       { name: "index_size_bytes", type: "number", required: true, description: "FAISS index file size" },
       { name: "metadata_size_bytes", type: "number", required: true, description: "Metadata NPZ size" },
     ],
-    curlPrefix: `curl http://localhost:3000/api/status`,
+    curlPrefix: `curl https://pixelrag.ai/api/status`,
   },
   {
     id: "tile",
@@ -101,7 +101,7 @@ const endpoints: Endpoint[] = [
     responseFields: [
       { name: "(binary)", type: "image/png", required: true, description: "PNG image data" },
     ],
-    curlPrefix: `curl http://localhost:3000/api/tile`,
+    curlPrefix: `curl https://pixelrag.ai/api/tile`,
     defaultParams: "article_id=2840114&tile_index=0&chunk_index=0",
     buildPath: (_body, params) => {
       const p = new URLSearchParams(params)
@@ -118,7 +118,7 @@ const endpoints: Endpoint[] = [
     responseFields: [
       { name: "status", type: "string", required: true, description: "Always \"ok\"" },
     ],
-    curlPrefix: `curl http://localhost:3000/api/health`,
+    curlPrefix: `curl https://pixelrag.ai/api/health`,
   },
 ]
 
