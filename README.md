@@ -198,6 +198,13 @@ We also release the full training set
 ([`Chrisyichuan/screenshot-training-natural-filtered-v2`](https://huggingface.co/datasets/Chrisyichuan/screenshot-training-natural-filtered-v2)),
 so you can adapt other backbones yourself — a larger Qwen, or any other embedding model.
 
+### Data Curation
+
+Visualization of some very early version of the training data:
+[early training data viewer](https://yichuan-w.github.io/share/blog-review-first100-light/)
+
+Reproduce: TBD
+
 ## Acknowledgments
 
 Thanks to [Rulin Shao](https://rulinshao.github.io/) for support.
