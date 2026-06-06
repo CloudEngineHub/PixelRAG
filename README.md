@@ -2,7 +2,8 @@
   <img src="docs/assets/banner.png" alt="PixelRAG — Visual Retrieval-Augmented Generation" width="100%">
 </p>
 <p align="center">
-  Official codebase for <b><a href="assets/pixelrag-paper.pdf">PixelRAG: Visually Grounded Retrieval-Augmented Generation with Screenshot Rendering</a></b>
+  Official codebase for <b><a href="assets/pixelrag-paper.pdf">PIXELRAG: Web Screenshots Beat Text for
+Retrieval-Augmented Generation</a></b>
 </p>
 <p align="center">
   <a href="https://yichuan-w.github.io/">Yichuan Wang</a>*,
