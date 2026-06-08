@@ -4,7 +4,7 @@
 Reports three metrics:
   - exact_match          : predicted.lower() == golden.lower()
   - char_accuracy        : character-level fuzzy match (weak, kept for backcompat)
-  - llm_judge_accuracy   : GPT-4.1 grade using the SimpleQA-style grader template
+  - llm_judge_accuracy   : GPT-4.1 grade using the factoid grader template
                            (A=correct / B=incorrect / C=not_attempted)
 
 Environment:
@@ -27,7 +27,7 @@ from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
 
 
-# Reused from train_contrastors.py — SimpleQA-style grader, returns A/B/C.
+# Reused from train_contrastors.py — factoid grader, returns A/B/C.
 _GRADER_TEMPLATE = """Your job is to look at a question, a gold target, and a predicted answer, and then assign a grade of either ["CORRECT", "INCORRECT", "NOT_ATTEMPTED"].
 Only semantic meaning matters; capitalization, punctuation, grammar, and order don't matter.
 Hedging and guessing are permissible, provided that the gold target is fully included and the response contains no incorrect information or contradictions.

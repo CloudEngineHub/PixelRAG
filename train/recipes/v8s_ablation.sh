@@ -16,7 +16,7 @@
 #   bash recipes/v8s_ablation.sh unfiltered  # + in-batch on unfiltered data (low-quality no-filter ablation)
 #
 # Each adds ONE knob vs the previous. All share: 350 steps, bs=64, grad-cache-chunk 4,
-# lr 7e-6, cosine, warmup 20, max-num-visual-tokens 4096, simpleqa-max-examples 1000.
+# lr 7e-6, cosine, warmup 20, max-num-visual-tokens 4096, qa-eval-max-examples 1000.
 
 set -u
 : "${OPENAI_API_KEY:?missing OPENAI_API_KEY}"
@@ -46,7 +46,7 @@ COMMON=(
     --test-eval-steps 50
     --save-steps 50
     --max-num-visual-tokens 4096
-    --simpleqa-max-examples 1000
+    --qa-eval-max-examples 1000
     --vllm-url http://localhost:8201/v1
     --vllm-model Qwen/Qwen3-VL-4B-Instruct
 )
@@ -74,7 +74,7 @@ case "$CONFIG" in
             --test-data test_miniv6/test_miniv6.json test_miniv8/test_miniv8.json \
             --eval-only --max-steps 1 --batch-size 4 --grad-cache-chunk 1 \
             --test-batch-size 16 --max-num-visual-tokens 4096 \
-            --lora-vit --simpleqa-max-examples 1000 \
+            --lora-vit --qa-eval-max-examples 1000 \
             --vllm-url http://localhost:8201/v1 \
             --vllm-model Qwen/Qwen3-VL-4B-Instruct \
             --no-wandb \

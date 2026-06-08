@@ -102,7 +102,7 @@ size_categories:
 
 # {repo_id}
 
-Wikipedia screenshot retrieval training dataset filtered for more natural, SimpleQA-like queries.
+Wikipedia screenshot retrieval training dataset filtered for natural factoid-style queries.
 
 ## Contents
 
@@ -132,7 +132,7 @@ Each metadata row has the form:
 ## Notes
 
 - This export is derived from `natrual_filtered_v2/lite-query-v2-full-filtered-hn.jsonl`.
-- Rows were filtered with `naturalness >= 4` and `simpleqa_style_fit >= 4`.
+- Rows were filtered with `naturalness >= 4` and `factoid_style_fit >= 4`.
 - Image paths are stored relative to the dataset root.
 - Source images were deduplicated before export so repeated hard negatives upload once.
 """

@@ -31,7 +31,7 @@ negatives, starting from raw Wikipedia screenshot tiles.
 │       │                              (chunks that actually answer   │
 │       │                               the query)                    │
 │       ▼                                                             │
-│  ⑤ clean_queries_simpleqa_style.py  Score naturalness + SimpleQA    │
+│  ⑤ filter_query_naturalness.py  Score naturalness + factoid    │
 │       │                              style fit via Gemini           │
 │       ▼                                                             │
 │  ⑥ export_natural_filtered_v2.py    Keep only naturalness≥4 &      │
@@ -82,7 +82,7 @@ negatives, starting from raw Wikipedia screenshot tiles.
 
 | Key | Used by | Purpose |
 |-----|---------|---------|
-| Google Cloud ADC | `generate_query_pairs.py`, `generate_text_query_pairs.py`, `clean_queries_simpleqa_style.py` | Gemini models via Vertex AI |
+| Google Cloud ADC | `generate_query_pairs.py`, `generate_text_query_pairs.py`, `filter_query_naturalness.py` | Gemini models via Vertex AI |
 | `OPENAI_API_KEY` | `filter_self_contained.py`, `filter_hard_negatives_vqa.py` | GPT-4o for query filtering and VQA false-negative removal |
 
 ```bash
@@ -236,32 +236,32 @@ Each chunk produces:
 
 ### Step 5: Clean Queries (Naturalness Scoring)
 
-Score each query on naturalness (1–5) and SimpleQA style fit (1–5) using Gemini.
+Score each query on naturalness (1–5) and factoid style fit (1–5) using Gemini.
 This step does NOT look at images — only the query text is judged.
 
-**Script:** `clean_queries_simpleqa_style.py`
+**Script:** `filter_query_naturalness.py`
 
 ```bash
-uv run python clean_queries_simpleqa_style.py \
+uv run python filter_query_naturalness.py \
     --model gemini-2.0-flash-001 \
     --target-count 50000 \
     --batch-size 20 \
     --concurrency 8 \
     --dedupe-query \
-    --output training/data/cleaned/simpleqa_style_cleaned.jsonl \
-    --reviews-output training/data/cleaned/simpleqa_style_cleaned.reviews.jsonl \
-    --summary-output training/data/cleaned/simpleqa_style_cleaned.summary.json
+    --output training/data/cleaned/naturalness_cleaned.jsonl \
+    --reviews-output training/data/cleaned/naturalness_cleaned.reviews.jsonl \
+    --summary-output training/data/cleaned/naturalness_cleaned.summary.json
 ```
 
 ### Step 6: Export Strict Retained Rows
 
-Keep only rows with `naturalness >= 4` and `simpleqa_style_fit >= 4`.
+Keep only rows with `naturalness >= 4` and `factoid_style_fit >= 4`.
 
 **Script:** `export_natural_filtered_v2.py`
 
 ```bash
 uv run python export_natural_filtered_v2.py \
-    --reviews training/data/cleaned/simpleqa_style_cleaned.reviews.jsonl \
+    --reviews training/data/cleaned/naturalness_cleaned.reviews.jsonl \
     --output-dir training/data/natural_filtered_v2 \
     --output-name filtered_hn.jsonl \
     --min-naturalness 4 \
@@ -397,7 +397,7 @@ uv run python run_filter_text_hard_negatives_chunks.py \
 
 | Script | Input | Output | API |
 |--------|-------|--------|-----|
-| `clean_queries_simpleqa_style.py` | filtered HN JSONL | reviews JSONL with scores | Gemini |
+| `filter_query_naturalness.py` | filtered HN JSONL | reviews JSONL with scores | Gemini |
 | `export_natural_filtered_v2.py` | reviews JSONL | strict-filtered JSONL | — |
 | `split_first5_chunks.py` | filtered JSONL | train/eval/test split | — |
 
@@ -482,7 +482,7 @@ uv run python run_filter_text_hard_negatives_chunks.py \
 |--------|----------------|-----------|
 | `is_natural_question()` (Step 1) | Layout references, dangling entities, truncated answers | ~30% of raw Gemini output |
 | `filter_self_contained.py` (Step 2) | Unnamed subjects, document-structure references | ~15% |
-| `clean_queries_simpleqa_style.py` (Step 5) | Templatic phrasing, poor naturalness | ~23% |
+| `filter_query_naturalness.py` (Step 5) | Templatic phrasing, poor naturalness | ~23% |
 
 ### Hard negative quality (Step 4)
 The VQA filter ensures hard negatives are truly *confusable but wrong*:
@@ -499,5 +499,5 @@ The published `screenshot-training-natural-filtered-v2` was generated with:
 - **Visual queries:** `gemini-3.1-flash-lite-preview` (120 batches, 195K raw → 165K filtered)
 - **Self-contained filter:** `gpt-4o` (15% drop rate, zero false keeps)
 - **Naturalness cleaning:** `gemini-2.0-flash-001`
-- **Naturalness thresholds:** `naturalness ≥ 4`, `simpleqa_style_fit ≥ 4`
+- **Naturalness thresholds:** `naturalness ≥ 4`, `factoid_style_fit ≥ 4`
 - **Final size:** 115,593 rows → 104K train / 5.8K eval / 5.8K test

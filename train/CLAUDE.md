@@ -102,7 +102,7 @@ CUDA_VISIBLE_DEVICES=2,3,4,5 uv run torchrun --master_port 29531 --nproc_per_nod
     --max-steps 100 \
     --max-num-visual-tokens 1024 \
     --search-api-url http://localhost:30888 \
-    --simpleqa-max-examples 100 \
+    --qa-eval-max-examples 100 \
     --vllm-url http://localhost:8201/v1 \
     --vllm-model Qwen/Qwen3-VL-4B-Instruct \
     --output-dir training/output_nvme/output_query_side
@@ -111,7 +111,7 @@ CUDA_VISIBLE_DEVICES=2,3,4,5 uv run torchrun --master_port 29531 --nproc_per_nod
 Required services:
 - **search API** on `:30888` — for retrieval eval (recall@1/3)
 - **vLLM** on `:8201` — Qwen3-VL-4B-Instruct for VQA answering
-- **OpenAI API** — GPT-4.1 as SimpleQA grader (needs `OPENAI_API_KEY`)
+- **OpenAI API** — GPT-4.1 as QA grader (needs `OPENAI_API_KEY`)
 
 Important defaults / caveats:
 
@@ -183,7 +183,7 @@ This matches the colpali/BiQwen2 approach which uses `.*model.*` regex to target
 Query-side-specific eval behavior:
 
 - `test split`: local query embeddings are sent to `--search-api-url`, retrieve top-3, report `recall@1` / `recall@3`
-- `SimpleQA`: current query tower retrieves top-3 from the same endpoint, reports article-level `recall@1` / `recall@3`, then grades answers with an OpenAI-compatible judge
+- `QA eval`: current query tower retrieves top-3 from the same endpoint, reports article-level `recall@1` / `recall@3`, then grades answers with an OpenAI-compatible judge
 
 ## Data
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Clean query-only training rows toward a SimpleQA-like style.
+"""Filter training queries for naturalness and factoid style.
 
 This script reads one or more JSONL files that contain `query` fields and uses
 Gemini to judge each query on two axes:
 1. Naturalness: does it sound like a real user question?
-2. SimpleQA style fit: does it resemble the style of SimpleQA factoid prompts?
+2. Factoid style fit: does it resemble a concise factoid question?
 
 The model only sees the query text. It does not inspect images or answers.
 
@@ -32,9 +32,7 @@ from pathlib import Path
 DEFAULT_INPUT_GLOB = (
     "training/data/lite-query-v2-full-filtered-hn-v2-chunks/chunk_*/filtered_hn.jsonl"
 )
-DEFAULT_SIMPLEQA_PATH = (
-    "/home/user/wiki-screenshot/eval/simpleqa_query_image_pairs.json"
-)
+DEFAULT_REFERENCE_QUERIES_PATH = "training/data/reference_factoid_queries.json"
 
 MODEL_PRICING = {
     "gemini-2.0-flash-001": {"input_per_m": 0.10, "output_per_m": 0.40},
@@ -66,9 +64,9 @@ def parse_args() -> argparse.Namespace:
         help="Optional JSON path for summary stats.",
     )
     parser.add_argument(
-        "--simpleqa-path",
-        default=DEFAULT_SIMPLEQA_PATH,
-        help="Path to SimpleQA pair JSON used for style references.",
+        "--reference-queries-path",
+        default=DEFAULT_REFERENCE_QUERIES_PATH,
+        help="Path to reference factoid query JSON used for style scoring.",
     )
     parser.add_argument(
         "--target-count",
@@ -92,7 +90,7 @@ def parse_args() -> argparse.Namespace:
         "--few-shot-count",
         type=int,
         default=12,
-        help="Number of SimpleQA examples shown in the prompt.",
+        help="Number of reference examples shown in the prompt.",
     )
     parser.add_argument(
         "--model",
@@ -113,7 +111,7 @@ def parse_args() -> argparse.Namespace:
         "--min-style-fit",
         type=int,
         default=4,
-        help="Minimum Gemini SimpleQA style score for direct keep.",
+        help="Minimum Gemini factoid style score for direct keep.",
     )
     parser.add_argument(
         "--dedupe-query",
@@ -276,7 +274,7 @@ def question_start_bucket(query: str) -> str:
     return parts[0] if parts else "<empty>"
 
 
-def load_simpleqa_references(path: Path, few_shot_count: int, seed: int) -> list[dict]:
+def load_reference_queries(path: Path, few_shot_count: int, seed: int) -> list[dict]:
     with path.open() as f:
         data = json.load(f)
 
@@ -332,7 +330,7 @@ def build_prompt(reference_examples: list[dict], batch: list[dict]) -> str:
 
     return f"""You are cleaning a synthetic screenshot-retrieval training set.
 
-Goal: keep only queries that read naturally and resemble SimpleQA-style factoid questions.
+Goal: keep only queries that read naturally and resemble concise factoid questions.
 Judge ONLY the query text. Do not assume access to images, answers, or metadata.
 
 High-quality queries usually:
@@ -347,7 +345,7 @@ Reject queries that are:
 - keywordy, malformed, or obviously synthetic
 - broad explanatory prompts, opinion questions, yes/no questions, or multi-hop questions
 
-Reference SimpleQA-style examples:
+Reference factoid-style examples:
 {chr(10).join(ref_lines)}
 
 Now score these candidate queries.
@@ -355,7 +353,7 @@ Now score these candidate queries.
 Return ONLY a JSON array. One object per candidate with exactly these keys:
 - id: integer
 - naturalness: integer 1-5
-- simpleqa_style_fit: integer 1-5
+- factoid_style_fit: integer 1-5
 - keep: boolean
 - reason: short string (<=12 words)
 
@@ -373,7 +371,7 @@ Candidates:
 
 def sanitize_decision(raw: dict, row_id: int) -> dict:
     naturalness = raw.get("naturalness", 0)
-    style_fit = raw.get("simpleqa_style_fit", 0)
+    style_fit = raw.get("factoid_style_fit", 0)
     keep = raw.get("keep", False)
     reason = raw.get("reason", "")
 
@@ -391,7 +389,7 @@ def sanitize_decision(raw: dict, row_id: int) -> dict:
     return {
         "id": int(row_id),
         "naturalness": max(0, min(5, naturalness)),
-        "simpleqa_style_fit": max(0, min(5, style_fit)),
+        "factoid_style_fit": max(0, min(5, style_fit)),
         "keep": bool(keep),
         "reason": str(reason).strip()[:200],
     }
@@ -421,7 +419,7 @@ def score_batch(
             decision = {
                 "id": row["row_id"],
                 "naturalness": 0,
-                "simpleqa_style_fit": 0,
+                "factoid_style_fit": 0,
                 "keep": False,
                 "reason": "missing_from_model_output",
             }
@@ -514,8 +512,8 @@ def review_rows(
 def candidate_priority(review: dict) -> tuple:
     return (
         int(review["keep"]),
-        int(review["naturalness"]) + int(review["simpleqa_style_fit"]),
-        int(review["simpleqa_style_fit"]),
+        int(review["naturalness"]) + int(review["factoid_style_fit"]),
+        int(review["factoid_style_fit"]),
         int(review["naturalness"]),
         -int(review["row_id"]),
     )
@@ -532,7 +530,7 @@ def select_rows(
         direct_keep = (
             review["keep"]
             and review["naturalness"] >= args.min_naturalness
-            and review["simpleqa_style_fit"] >= args.min_style_fit
+            and review["factoid_style_fit"] >= args.min_style_fit
         )
         if direct_keep:
             candidates.append((row, review))
@@ -623,10 +621,10 @@ def main() -> int:
     rows = load_input_rows(args)
     print(f"Loaded {len(rows)} rows from {args.input_glob}", flush=True)
 
-    references = load_simpleqa_references(
-        Path(args.simpleqa_path), args.few_shot_count, args.seed
+    references = load_reference_queries(
+        Path(args.reference_queries_path), args.few_shot_count, args.seed
     )
-    print(f"Loaded {len(references)} SimpleQA reference examples", flush=True)
+    print(f"Loaded {len(references)} reference factoid examples", flush=True)
 
     client_ctx = build_client(args)
     reviews = review_rows(rows, args, client_ctx, references, reviews_path)
@@ -638,7 +636,7 @@ def main() -> int:
     summary = {
         "model": args.model,
         "input_glob": args.input_glob,
-        "simpleqa_path": args.simpleqa_path,
+        "reference_queries_path": args.reference_queries_path,
         "total_input_rows": len(rows),
         "reviewed_rows": len(reviews),
         "selected_rows": len(selected),

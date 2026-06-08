@@ -217,7 +217,7 @@ CUDA_VISIBLE_DEVICES=<TRAIN_GPU> uv run python train_contrastors.py \
     --save-steps 50 \
     --max-num-visual-tokens 4096 \
     --lora-vit \
-    --simpleqa-max-examples 1000 \
+    --qa-eval-max-examples 1000 \
     --vllm-url http://localhost:8200/v1 \
     --vllm-model Qwen/Qwen3-VL-4B-Instruct \
     --wandb-run-name v8r \

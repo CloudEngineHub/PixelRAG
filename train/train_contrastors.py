@@ -414,17 +414,17 @@ def build_openai_client(api_base_url="", timeout=60):
     return OpenAI(api_key=api_key, base_url=base, timeout=timeout)
 
 
-def preflight_simpleqa_client(vllm_url="", model_name=""):
-    """Check SimpleQA answer/judge client before expensive model loading."""
+def preflight_qa_eval_client(vllm_url="", model_name=""):
+    """Check QA eval answer/judge client before expensive model loading."""
     try:
         client = build_openai_client(vllm_url, timeout=30)
         client.models.list()
         target = vllm_url or "openai"
-        logger.info(f"SimpleQA API preflight OK: target={target} model={model_name}")
+        logger.info(f"QA eval API preflight OK: target={target} model={model_name}")
         return True
     except Exception as e:
         target = vllm_url or "openai"
-        logger.warning(f"SimpleQA API preflight failed for {target}: {e}")
+        logger.warning(f"QA eval API preflight failed for {target}: {e}")
         return False
 
 
@@ -1026,8 +1026,8 @@ def load_retrieval_queries(jsonl_path, max_examples=0):
     return examples
 
 
-def load_simpleqa_queryset(jsonl_path=None, max_examples=1000, articles_json=None):
-    """Load SimpleQA queryset JSONL bundled with this repo."""
+def load_qa_eval_queryset(jsonl_path=None, max_examples=1000, articles_json=None):
+    """Load QA evaluation queryset JSONL bundled with this repo."""
     examples = []
     slug_to_aid = None
     if jsonl_path and os.path.exists(jsonl_path):
@@ -1056,10 +1056,10 @@ def load_simpleqa_queryset(jsonl_path=None, max_examples=1000, articles_json=Non
                 )
                 if max_examples > 0 and len(examples) >= max_examples:
                     break
-        logger.info(f"Loaded {len(examples)} SimpleQA queries from {jsonl_path}")
+        logger.info(f"Loaded {len(examples)} QA eval queries from {jsonl_path}")
         return examples
 
-    raise FileNotFoundError(f"SimpleQA queryset not found at {jsonl_path!r}.")
+    raise FileNotFoundError(f"QA eval queryset not found at {jsonl_path!r}.")
 
 
 @torch.no_grad()
@@ -1204,7 +1204,7 @@ def run_search_api_retrieval_eval(
     }
 
 
-def run_simpleqa_search_api_eval(
+def run_qa_search_api_eval(
     model,
     processor,
     examples,
@@ -1218,7 +1218,7 @@ def run_simpleqa_search_api_eval(
     vllm_max_tokens=200,
     vllm_enable_thinking=False,
 ):
-    """Run SimpleQA retrieval, compute article recall, then judge QA correctness."""
+    """Run QA eval retrieval, compute article recall, then judge QA correctness."""
     import base64
     import io
     import re
@@ -1232,7 +1232,7 @@ def run_simpleqa_search_api_eval(
     search_resp = search_api_by_embeddings(search_api_url, query_embs, n_docs=n_docs)
 
     if not vllm_url:
-        logger.info("SimpleQA will use hosted OpenAI API (no --vllm-url provided)")
+        logger.info("QA eval will use hosted OpenAI API (no --vllm-url provided)")
 
     # VQA answer client — uses vLLM if provided, else OpenAI
     # vLLM with multi-image VQA can take >60s per request
@@ -1325,7 +1325,7 @@ def run_simpleqa_search_api_eval(
             )
             predicted = resp.choices[0].message.content.strip()
         except Exception as e:
-            logger.warning(f"SimpleQA [{idx + 1}] VQA failed: {e}")
+            logger.warning(f"QA eval [{idx + 1}] VQA failed: {e}")
             predicted = ""
         return idx, predicted
 
@@ -1333,7 +1333,7 @@ def run_simpleqa_search_api_eval(
     vqa_concurrency = 4
     predictions = [""] * len(examples)
     logger.info(
-        f"SimpleQA: sending {len(examples)} VQA requests to vLLM (concurrency={vqa_concurrency})"
+        f"QA eval: sending {len(examples)} VQA requests to vLLM (concurrency={vqa_concurrency})"
     )
     with ThreadPoolExecutor(max_workers=vqa_concurrency) as pool:
         futures = [
@@ -1344,8 +1344,8 @@ def run_simpleqa_search_api_eval(
             idx, pred = fut.result()
             predictions[idx] = pred
             if (idx + 1) % 20 == 0:
-                logger.info(f"SimpleQA VQA: {idx + 1}/{len(examples)} done")
-    logger.info(f"SimpleQA VQA: all {len(examples)} done")
+                logger.info(f"QA eval VQA: {idx + 1}/{len(examples)} done")
+    logger.info(f"QA eval VQA: all {len(examples)} done")
 
     # --- Phase 3: grade with OpenAI (concurrent) ---
     def _do_grade(idx, example, predicted):
@@ -1368,7 +1368,7 @@ def run_simpleqa_search_api_eval(
             grade = grade_resp.choices[0].message.content.strip()
             return idx, bool(re.search(r"A", grade))
         except Exception as e:
-            logger.warning(f"SimpleQA [{idx + 1}] grading failed: {e}")
+            logger.warning(f"QA eval [{idx + 1}] grading failed: {e}")
             return idx, False
 
     gradeable = [
@@ -1376,7 +1376,7 @@ def run_simpleqa_search_api_eval(
     ]
     total = len(gradeable)
     if total > 0:
-        logger.info(f"SimpleQA: grading {total} answers via OpenAI ({grader_model})")
+        logger.info(f"QA eval: grading {total} answers via OpenAI ({grader_model})")
         with ThreadPoolExecutor(max_workers=16) as pool:
             futures = [pool.submit(_do_grade, i, ex, pred) for i, ex, pred in gradeable]
             for fut in as_completed(futures):
@@ -1841,7 +1841,7 @@ def main():
     parser.add_argument(
         "--articles-json",
         default="/opt/dlami/nvme/kiwix/wikipedia_en_all_maxi_2025-08.zim.articles.json",
-        help="Wikipedia articles.json used to map SimpleQA URLs to article ids",
+        help="Wikipedia articles.json used to map QA eval URLs to article ids",
     )
     parser.add_argument(
         "--search-api-batch-size",
@@ -1850,20 +1850,20 @@ def main():
         help="Batch size for local query embedding before hitting search API",
     )
     parser.add_argument(
-        "--simpleqa-jsonl",
-        default="training/data/simpleqa_wiki_1k_queryset.jsonl",
-        help="Bundled SimpleQA queryset JSONL",
+        "--qa-eval-jsonl",
+        default="training/data/qa_eval_queryset.jsonl",
+        help="Bundled QA evaluation queryset JSONL",
     )
     parser.add_argument(
-        "--simpleqa-max-examples",
+        "--qa-eval-max-examples",
         type=int,
         default=1000,
-        help="Number of SimpleQA examples to evaluate in query-side-tune mode",
+        help="Number of QA eval examples to evaluate in query-side-tune mode",
     )
     parser.add_argument(
-        "--simpleqa-grader-model",
+        "--qa-grader-model",
         default="gpt-4.1-2025-04-14",
-        help="LLM-as-judge model used by PixelRAG SimpleQA evaluation",
+        help="LLM-as-judge model used by PixelRAG QA evaluation",
     )
     parser.add_argument(
         "--vllm-url",
@@ -2138,28 +2138,28 @@ def main():
 
     is_main = rank == 0
 
-    simpleqa_api_ready = True
-    if args.mode == "query-side-tune" and args.simpleqa_max_examples > 0:
+    qa_eval_api_ready = True
+    if args.mode == "query-side-tune" and args.qa_eval_max_examples > 0:
         if is_main:
-            simpleqa_api_ready = preflight_simpleqa_client(
+            qa_eval_api_ready = preflight_qa_eval_client(
                 vllm_url=args.vllm_url,
                 model_name=args.vllm_model,
             )
             # Also check that OPENAI_API_KEY is set for the grader
-            if simpleqa_api_ready and not os.environ.get("OPENAI_API_KEY"):
+            if qa_eval_api_ready and not os.environ.get("OPENAI_API_KEY"):
                 logger.warning(
-                    "OPENAI_API_KEY not set — SimpleQA grading (judge) will be disabled."
+                    "OPENAI_API_KEY not set — QA eval grading (judge) will be disabled."
                 )
-                simpleqa_api_ready = False
+                qa_eval_api_ready = False
         if distributed:
-            ready_tensor = torch.tensor([1 if simpleqa_api_ready else 0], device=device)
+            ready_tensor = torch.tensor([1 if qa_eval_api_ready else 0], device=device)
             dist.broadcast(ready_tensor, src=0)
-            simpleqa_api_ready = bool(ready_tensor.item())
-        if not simpleqa_api_ready:
-            args.simpleqa_max_examples = 0
+            qa_eval_api_ready = bool(ready_tensor.item())
+        if not qa_eval_api_ready:
+            args.qa_eval_max_examples = 0
             if is_main:
                 logger.warning(
-                    "Disabling SimpleQA eval for this run because no working OpenAI / "
+                    "Disabling QA eval for this run because no working OpenAI / "
                     "OpenAI-compatible API was available at startup."
                 )
 
@@ -2531,7 +2531,7 @@ def main():
     # Multiple test sets are evaluated independently each test_eval step.
     test_datasets = []
     test_split_queries = None
-    simpleqa_queries = None
+    qa_eval_queries = None
     if is_main:
         if args.mode == "query-side-tune":
             if os.path.exists(args.test_jsonl):
@@ -2540,14 +2540,14 @@ def main():
                 logger.warning(
                     f"Query-side retrieval test skipped: missing {args.test_jsonl}"
                 )
-            if args.simpleqa_max_examples > 0:
+            if args.qa_eval_max_examples > 0:
                 try:
-                    simpleqa_queries = load_simpleqa_queryset(
-                        args.simpleqa_jsonl,
-                        max_examples=args.simpleqa_max_examples,
+                    qa_eval_queries = load_qa_eval_queryset(
+                        args.qa_eval_jsonl,
+                        max_examples=args.qa_eval_max_examples,
                     )
                 except Exception as e:
-                    logger.warning(f"SimpleQA queryset load failed: {e}")
+                    logger.warning(f"QA eval queryset load failed: {e}")
         elif args.test_eval_steps > 0:
             for tpath in args.test_data:
                 if not os.path.exists(tpath):
@@ -2592,7 +2592,7 @@ def main():
                 "eval_pairs": len(eval_dataset),
                 **wandb_test_cfg,
                 "test_queries": len(test_split_queries or []),
-                "simpleqa_queries": len(simpleqa_queries or []),
+                "qa_eval_queries": len(qa_eval_queries or []),
                 "effective_batch_size": args.batch_size * world_size,
             },
             allow_val_change=True,
@@ -2805,41 +2805,41 @@ def main():
             except Exception as e:
                 logger.warning(f"test-split retrieval eval failed: {e}")
 
-        if simpleqa_queries:
+        if qa_eval_queries:
             try:
                 logger.info(
-                    f"Running SimpleQA eval via search API: {len(simpleqa_queries)} queries..."
+                    f"Running QA eval via search API: {len(qa_eval_queries)} queries..."
                 )
-                metrics = run_simpleqa_search_api_eval(
+                metrics = run_qa_search_api_eval(
                     model,
                     processor,
-                    simpleqa_queries,
+                    qa_eval_queries,
                     device,
                     search_api_url=args.search_api_url,
                     vllm_url=args.vllm_url,
                     vllm_model=args.vllm_model,
                     batch_size=args.search_api_batch_size,
                     n_docs=3,
-                    grader_model=args.simpleqa_grader_model,
+                    grader_model=args.qa_grader_model,
                     vllm_max_tokens=args.vllm_max_tokens,
                     vllm_enable_thinking=args.vllm_enable_thinking,
                 )
                 for k, v in metrics.items():
                     if isinstance(v, (int, float)):
-                        logger.info(f"  simpleqa/{k}: {v:.4f}")
+                        logger.info(f"  qa_eval/{k}: {v:.4f}")
                     else:
-                        logger.info(f"  simpleqa/{k}: {v}")
+                        logger.info(f"  qa_eval/{k}: {v}")
                 if use_wandb and metrics:
                     wandb.log(
                         {
-                            f"simpleqa/{k}": v
+                            f"qa_eval/{k}": v
                             for k, v in metrics.items()
                             if isinstance(v, (int, float))
                         },
                         step=step,
                     )
             except Exception as e:
-                logger.warning(f"SimpleQA eval failed: {e}")
+                logger.warning(f"QA eval failed: {e}")
         if ema is not None:
             ema.restore(model)
         model.train()
@@ -2871,7 +2871,7 @@ def main():
                 batch_size=args.test_batch_size,
                 vllm_url=args.vllm_url,
                 vllm_model=args.vllm_model,
-                grader_model=args.simpleqa_grader_model,
+                grader_model=args.qa_grader_model,
                 output_path=os.path.join(
                     args.output_dir, f"{label_prefix}_step{step}_{name}.jsonl"
                 ),
@@ -2902,7 +2902,7 @@ def main():
         return
 
     # Step-0 baseline before any optimization updates.
-    # For query-side-tune this gives retrieval recall / SimpleQA QA against the
+    # For query-side-tune this gives retrieval recall / QA eval against the
     # frozen-base checkpoint, which is the most useful comparison point.
     if start_step == 0:
         if distributed:

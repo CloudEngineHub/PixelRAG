@@ -21,7 +21,7 @@ It keeps the same core row structure as the existing HN training data:
 ```
 
 The main difference is that the query text was filtered to be more natural and
-closer to SimpleQA-style factoid questions.
+closer to natural factoid-style questions.
 
 ### Why It Is Cleaner
 
@@ -30,12 +30,12 @@ templatic. Common issues included:
 
 - stiff openings like `In what year...` or `In which...`
 - annotation-like phrasing rather than user-style questions
-- weaker alignment with the short factoid style seen in SimpleQA
+- weaker alignment with the short factoid style we target
 
 This version keeps only rows whose query passed both of these query-only filters:
 
 - `naturalness >= 4`
-- `simpleqa_style_fit >= 4`
+- `factoid_style_fit >= 4`
 
 These two scores were assigned by Gemini after comparing each query against
 reference SimpleQA questions. The model only judged the query text. It did not
@@ -47,19 +47,19 @@ The pipeline was:
 
 1. Start from the full filtered hard-negative dataset in
    `training/data/lite-query-v2-full-filtered-hn-v2-chunks/chunk_*/filtered_hn.jsonl`.
-2. Run `clean_queries_simpleqa_style.py` over all `149,991` rows.
-3. Score each query against SimpleQA-style references with:
+2. Run `filter_query_naturalness.py` over all `149,991` rows.
+3. Score each query against factoid-style references with:
    - `naturalness` on a 1-5 scale
-   - `simpleqa_style_fit` on a 1-5 scale
-4. Keep only rows with `naturalness >= 4` and `simpleqa_style_fit >= 4`.
+   - `factoid_style_fit` on a 1-5 scale
+4. Keep only rows with `naturalness >= 4` and `factoid_style_fit >= 4`.
 5. Export the retained rows in original HN format to
    `training/data/natrual_filtered_v2/lite-query-v2-full-filtered-hn.jsonl`.
 6. Split the cleaned data into train/eval/test.
 7. Package the referenced images into tar shards and upload to Hugging Face.
 
 Important: the intermediate command used `--target-count 50000`, but that only
-controlled the auxiliary `simpleqa_style_cleaned_50k.jsonl` output. The
-`simpleqa_style_cleaned_50k.reviews.jsonl` file still contains full-query
+controlled the auxiliary `naturalness_cleaned.jsonl` output. The
+`naturalness_cleaned.reviews.jsonl` file still contains full-query
 reviews for all `149,991` rows, and the final strict export was derived from
 that full review file.
 
@@ -106,7 +106,7 @@ Examples of what improved:
 - fewer templatic `In what...` openings
 - more direct `What...` / `Who...` / `How many...` style questions
 - better use of disambiguating context like years, titles, roles, and places
-- closer stylistic match to `simpleqa_query_image_pairs.json`
+- closer stylistic match to reference factoid queries
 
 The hard-negative structure itself was not re-mined here. We retained the
 original positive image and hard negatives for each accepted row.
@@ -172,22 +172,22 @@ python data/screenshot-training-natural-filtered-v2/extract_hf_image_shards.py \
 #### 1. Query cleaning
 
 ```bash
-uv run python clean_queries_simpleqa_style.py \
+uv run python filter_query_naturalness.py \
     --model gemini-2.0-flash-001 \
     --target-count 50000 \
     --batch-size 20 \
     --concurrency 8 \
     --dedupe-query \
-    --output training/data/lite-query-v2-full-filtered-hn-v2-chunks/simpleqa_style_cleaned_50k.jsonl \
-    --reviews-output training/data/lite-query-v2-full-filtered-hn-v2-chunks/simpleqa_style_cleaned_50k.reviews.jsonl \
-    --summary-output training/data/lite-query-v2-full-filtered-hn-v2-chunks/simpleqa_style_cleaned_50k.summary.json
+    --output training/data/lite-query-v2-full-filtered-hn-v2-chunks/naturalness_cleaned.jsonl \
+    --reviews-output training/data/lite-query-v2-full-filtered-hn-v2-chunks/naturalness_cleaned.reviews.jsonl \
+    --summary-output training/data/lite-query-v2-full-filtered-hn-v2-chunks/naturalness_cleaned.summary.json
 ```
 
 #### 2. Export strict retained rows
 
 ```bash
 uv run python export_natural_filtered_v2.py \
-    --reviews training/data/lite-query-v2-full-filtered-hn-v2-chunks/simpleqa_style_cleaned_50k.reviews.jsonl \
+    --reviews training/data/lite-query-v2-full-filtered-hn-v2-chunks/naturalness_cleaned.reviews.jsonl \
     --output-dir training/data/natrual_filtered_v2 \
     --output-name lite-query-v2-full-filtered-hn.jsonl \
     --min-naturalness 4 \

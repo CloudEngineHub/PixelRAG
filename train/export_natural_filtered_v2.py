@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export rows passing SimpleQA-style query filters in original HN format."""
+"""Export rows passing naturalness + factoid-style query filters in original HN format."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--reviews",
-        default="training/data/lite-query-v2-full-filtered-hn-v2-chunks/simpleqa_style_cleaned_50k.reviews.jsonl",
+        default="training/data/lite-query-v2-full-filtered-hn-v2-chunks/naturalness_cleaned.reviews.jsonl",
         help="Review JSONL with naturalness/style scores.",
     )
     parser.add_argument(
@@ -50,7 +50,9 @@ def main() -> int:
             reviewed_rows += 1
             item = json.loads(line)
             naturalness = int(item.get("naturalness", 0) or 0)
-            style_fit = int(item.get("simpleqa_style_fit", 0) or 0)
+            style_fit = int(
+                item.get("factoid_style_fit") or item.get("simpleqa_style_fit") or 0
+            )
             if naturalness >= args.min_naturalness and style_fit >= args.min_style_fit:
                 selected_lines_by_file[item["source_file"]].add(
                     int(item["source_line"])
