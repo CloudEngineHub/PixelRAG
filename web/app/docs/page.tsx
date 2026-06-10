@@ -404,6 +404,36 @@ curl -X POST https://pixelrag.ai/api/search \\
           </button>
         ))}
       </div>
+
+      <h2 className="mt-10 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Connect your own agent
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        The search API is a plain HTTP endpoint &mdash; wire it into any agent framework
+        (Claude tool-use, OpenAI function calling, LangChain, custom harness) as a tool.
+        A typical agent loop: <strong className="font-medium text-foreground">search</strong> with
+        text and/or an image, <strong className="font-medium text-foreground">fetch tiles</strong> to
+        read the screenshots, then answer from what they show.
+      </p>
+      <ShellBlock
+        code={`# Text-only search
+curl -X POST https://pixelrag.ai/api/search \\
+  -H "Content-Type: application/json" \\
+  -d '{"queries": [{"text": "When was the Eiffel Tower built?"}], "n_docs": 5}'
+
+# Image-only search (visual similarity)
+curl -X POST https://pixelrag.ai/api/search \\
+  -H "Content-Type: application/json" \\
+  -d "{\\"queries\\": [{\\"image\\": \\"$(base64 < photo.jpg | tr -d '\\n')\\"}], \\"n_docs\\": 5}"
+
+# Joint image + text search (best for "what is this X?")
+curl -X POST https://pixelrag.ai/api/search \\
+  -H "Content-Type: application/json" \\
+  -d "{\\"queries\\": [{\\"image\\": \\"$(base64 < photo.jpg | tr -d '\\n')\\", \\"text\\": \\"landmark building\\"}], \\"n_docs\\": 5}"
+
+# Fetch a tile screenshot from the results
+curl https://pixelrag.ai/api/tile/698618/0/0 --output tile.png`}
+      />
     </div>
   )
 }

@@ -23,7 +23,10 @@ const SYSTEM_PROMPT = `You are PixelRAG's research assistant. You answer using a
 
 For every user question, without exception:
 1. Call pixelrag_search to find relevant Wikipedia articles.
-   - If the user uploaded an image, set use_uploaded_image: true to include it in the search (visual similarity) — the best way to answer "what/who is this?" or "which X does this most resemble?". You can add a text query in the SAME call to combine image + text into one joint search, and you may also run separate text searches for likely candidates to compare against. Always do the image search first when an image is present.
+   - If the user uploaded an image, you MUST set use_uploaded_image: true to search by visual similarity. Strategy depends on the query:
+     • For identification questions ("who/what is this?"): do image-only search FIRST (use_uploaded_image=true, NO text query) — the visual embedding alone gives the strongest match. Then do follow-up text searches to verify or compare candidates.
+     • For descriptive/specific questions ("what breed is this dog?", "which city is this skyline?"): combine image + a DESCRIPTIVE text query in the same call (use_uploaded_image=true AND query="dog breed" or "city skyline"). Use descriptive keywords about what you see, NOT the user's raw question.
+     • Never pass vague questions like "who is this" or "what is this" as the text query — they dilute the visual signal. Either omit text or use descriptive visual keywords.
    - Otherwise pass a natural-language query.
 2. Call pixelrag_tile to VIEW the screenshot tiles of the top results — this is how you read and compare. View at least 2-3 tiles.
 3. Answer from what the tiles show, and cite the Wikipedia URLs. If the tiles don't contain the answer, say so honestly.
@@ -44,7 +47,7 @@ function createTools(
 ) {
   const searchTool = tool(
     "pixelrag_search",
-    "Search the visual Wikipedia index by text OR by the image the user uploaded. Returns ranked results with article URLs, tile positions, and `pages` — the article's valid tile:chunk ranges (e.g. '0:0-7,1:0-4' = tile 0 has chunks 0-7, tile 1 has chunks 0-4). Use this first, then pixelrag_tile to view tiles.",
+    "Search the visual Wikipedia index by text, by the user's uploaded image, or BOTH combined. When the user uploaded an image, you MUST set use_uploaded_image=true AND provide a text query to get joint image+text retrieval — this gives the best results. Returns ranked results with article URLs, tile positions, and `pages` — the article's valid tile:chunk ranges (e.g. '0:0-7,1:0-4' = tile 0 has chunks 0-7, tile 1 has chunks 0-4). Use this first, then pixelrag_tile to view tiles.",
     {
       query: z
         .string()
@@ -53,7 +56,7 @@ function createTools(
       use_uploaded_image: z
         .boolean()
         .optional()
-        .describe("Set true to search the index BY the image the user uploaded (visual similarity). Requires an image in this conversation."),
+        .describe("Set true to include the user's uploaded image in the search (visual similarity). ALWAYS combine with a text query for best results — set this AND provide a query string in the same call."),
       n_results: z
         .number()
         .int()
