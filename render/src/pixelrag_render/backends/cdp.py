@@ -517,6 +517,7 @@ def render_urls(
         from .fast_cdp import render_articles
 
         stem_list = _derive_stems(urls, stems)
+
         # path "{stem}.png" makes fast_cdp emit "{stem}.png.tiles" — the same
         # layout the standard path / CLI / index pipeline expect. fast_cdp prepends
         # file:// to non-http inputs, so hand it a plain path for file:// URIs.
