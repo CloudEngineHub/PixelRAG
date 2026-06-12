@@ -33,47 +33,91 @@ RELEASE_URL_TEMPLATE = (
     "chrome-{version}/headless_shell-linux-x64.tar.zst"
 )
 
-# Search order for find_chrome()
-_SEARCH_PATHS = [
-    lambda: os.environ.get("CHROME_PATH", ""),
-    lambda: str(INSTALL_DIR / "headless_shell"),
-    lambda: os.path.expanduser(
-        "~/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome"
-    ),
-    lambda: "/usr/bin/google-chrome",
-    lambda: "/usr/bin/google-chrome-stable",
-    lambda: "/usr/bin/chromium-browser",
-    lambda: "/usr/bin/chromium",
-]
+
+def _candidate_chrome_paths(system: str | None = None) -> list[str]:
+    """Ordered Chrome binary candidates for the given OS (default: this OS).
+
+    Order: CHROME_PATH env → pixelrag-installed patched headless_shell →
+    Playwright's Chromium (newest version first) → system Chrome/Chromium.
+    Playwright and system locations are OS-specific so the skill works on
+    macOS and Windows, not only Linux.
+    """
+    import glob
+
+    system = system or platform.system()
+    home = Path.home()
+    paths: list[str] = []
+
+    env = os.environ.get("CHROME_PATH", "")
+    if env:
+        paths.append(env)
+    # Bundled patched headless_shell (only installed on linux-x64, harmless elsewhere).
+    paths.append(str(INSTALL_DIR / "headless_shell"))
+
+    def add_playwright(cache_dir: Path, rel_glob: str) -> None:
+        # Newest chromium-NNNN first.
+        paths.extend(sorted(glob.glob(str(cache_dir / rel_glob)), reverse=True))
+
+    if system == "Darwin":
+        add_playwright(
+            home / "Library" / "Caches" / "ms-playwright",
+            "chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+        )
+        paths += [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+    elif system == "Windows":
+        localappdata = os.environ.get("LOCALAPPDATA", "")
+        if localappdata:
+            add_playwright(
+                Path(localappdata) / "ms-playwright",
+                "chromium-*/chrome-win*/chrome.exe",
+            )
+        for base in (
+            os.environ.get("PROGRAMFILES", r"C:\Program Files"),
+            os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"),
+            localappdata,
+        ):
+            if base:
+                paths.append(str(Path(base) / "Google/Chrome/Application/chrome.exe"))
+    else:  # Linux / other
+        add_playwright(
+            home / ".cache" / "ms-playwright", "chromium-*/chrome-linux*/chrome"
+        )
+        paths += [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/chromium",
+        ]
+    return paths
 
 
 def find_chrome(auto_install: bool = True) -> str:
-    """Find the best available Chrome binary. Auto-installs if none found.
+    """Find the best available Chrome binary. Auto-installs on linux-x64 if none found.
 
-    Search order:
-    1. CHROME_PATH env var
-    2. pixelrag-installed headless_shell (~/.cache/pixelrag/chrome/)
-    3. Playwright's Chrome
-    4. System Chrome/Chromium
-    5. Auto-install patched headless_shell (if auto_install=True)
+    Search order (per OS): CHROME_PATH → pixelrag-installed headless_shell →
+    Playwright's Chromium → system Chrome/Chromium → (linux-x64) auto-install.
 
     Returns:
         Path to Chrome binary.
 
     Raises:
-        FileNotFoundError: No Chrome binary found and auto_install=False.
+        FileNotFoundError: No Chrome binary found (and auto-install unavailable).
     """
-    for path_fn in _SEARCH_PATHS:
-        path = path_fn()
+    for path in _candidate_chrome_paths():
         if path and os.path.isfile(path) and os.access(path, os.X_OK):
             return path
 
-    if auto_install:
+    # The prebuilt (turbo) headless_shell is published only for linux-x64.
+    if auto_install and platform.system() == "Linux" and platform.machine() == "x86_64":
         print("No Chrome found. Installing headless_shell...", flush=True)
         return str(install_chrome())
 
     raise FileNotFoundError(
-        "No Chrome binary found. Run 'pixelshot install-chrome' or set CHROME_PATH."
+        "No Chrome binary found. Install Google Chrome or Chromium, or set CHROME_PATH "
+        "to its executable. (The bundled headless_shell auto-installs on linux-x64 only.)"
     )
 
 
