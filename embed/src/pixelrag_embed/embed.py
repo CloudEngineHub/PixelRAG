@@ -346,6 +346,15 @@ def scan_shard_chunks(
 
         article_id = meta.get("article_id")
         if article_id is None:
+            # chunks.json predates the article_id contract — try the sibling
+            # tiles.json (CPU embedder does the same), then the directory name.
+            tiles_json = tiles_dir / "tiles.json"
+            if tiles_json.exists():
+                try:
+                    article_id = json.loads(tiles_json.read_text()).get("article_id")
+                except (json.JSONDecodeError, OSError):
+                    pass
+        if article_id is None:
             dir_name = tiles_dir.name
             try:
                 article_id = int(dir_name.split(".")[0])

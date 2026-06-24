@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -97,7 +98,12 @@ def scan_chunks(shard_dir: str) -> list[dict]:
                 try:
                     article_id = int(article_id_str)
                 except ValueError:
-                    article_id = hash(article_id_str) % (2**31)
+                    # Non-numeric dir name with no manifest article_id. Use a
+                    # stable hash (builtin hash() is salted by PYTHONHASHSEED and
+                    # would give a different id every build -> non-reproducible
+                    # index). sha1 keeps the same id for the same dir name.
+                    digest = hashlib.sha1(article_id_str.encode()).hexdigest()
+                    article_id = int(digest[:8], 16)
 
             if chunks_json.exists():
                 with open(chunks_json) as f:

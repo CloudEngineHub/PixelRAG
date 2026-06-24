@@ -99,18 +99,15 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
     if pdf_docs:
         logger.info("  Rendered %d PDFs", len(pdf_docs))
 
-    # Write article_id into each tile directory's manifest so the embed
-    # pipeline can read it explicitly instead of guessing from the directory
-    # name. This is the authoritative source of article_id — directory names
-    # are for humans, manifests are for the pipeline.
-    tile_dir_map: dict[int, Path] = {}
+    # Write article_id into each tile directory's manifests so the embed
+    # pipeline reads it explicitly instead of guessing from the directory name.
+    # tiles.json always exists here. chunks.json exists only for PDFs (pdf.py
+    # writes it at render time, and chunk.py then skips those dirs); for URLs it
+    # is created by Stage 2's chunk.py, which propagates article_id from
+    # tiles.json. So write whichever manifests exist now.
     for idx, _ in url_docs + pdf_docs + image_docs:
-        tile_path = tiles_dir / f"{idx}.png.tiles"
-        if tile_path.is_dir():
-            tile_dir_map[idx] = tile_path
-    for idx, tile_path in tile_dir_map.items():
         for manifest_name in ("tiles.json", "chunks.json"):
-            manifest_path = tile_path / manifest_name
+            manifest_path = tiles_dir / f"{idx}.png.tiles" / manifest_name
             if manifest_path.exists():
                 try:
                     manifest = json.loads(manifest_path.read_text())
