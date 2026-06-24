@@ -1,13 +1,11 @@
 # Reproducing PixelRAG paper Table 1 (Qwen3.5-4B, k=3)
 
-Self-contained in this repo (`eval/run_bench.py` + `eval/lib/` + `eval/lib/grader.py`).
-**No dependency on the old `Vis-RAG` / `dr-agent` repo.** The driver and grader were
-migrated from it (provenance noted in the file headers); the old repo can be deleted.
+Everything needed lives in this directory: the benchmark driver (`run_bench.py`), the
+dataset loaders (`lib/`), and the LLM-judge grader (`lib/grader.py`). No external checkout
+is required.
 
-The reproduction script just runs the pipeline and prints a score. It does **not** compare
-to the paper and does **not** branch on hardware. Run the reader on an **H100** and the
-numbers land within ~1pp of the paper (B200 systematically diverges ~0.6–1.6pp on the
-greedy decode; see `gpu-hardware-reproduction`).
+The reproduction script just runs the pipeline and prints a score. Run the reader on an
+**H100** to match the paper's greedy decode.
 
 ## 1. Environment (locked)
 
@@ -46,11 +44,29 @@ stores and HF caches.
 |-------|------|--------|
 | FAISS indexes (base/lora pixel, text, news) | ~570G | HF dataset `StarTrail-org/pixelrag-faiss-indexes` (4 subdirs; `serve_up.sh` downloads them) |
 | reader Qwen3.5-4B / LoRA encoder / training data / QA datasets | — | HF (`Qwen/Qwen3.5-4B`, `Chrisyichuan/*`, `CaraJ/MMSearch`, encyclopedic_vqa csv) |
-| **wiki + news tiles** (reader's image evidence) | **~13T** (12T wiki + 838G news) | **NOT on HF** — render from the public kiwix ZIM via the `render` stage (render→embed→index→serve), or render on-demand for the retrieved pages. Too large to publish. |
+| **wiki + news tiles** (reader's image evidence) | ~4T | HF dataset `StarTrail-org/pixelrag-tiles` (or regenerate from the public kiwix ZIM via the `render` stage) |
 | EVQA/LiveVQA query images (landmark/inat/editorial photo) | ~6G | small; landmark=GLDv2, inat=iNaturalist, livevqa=editorial photos (note: editorial photos are copyrighted — redistribute with care) |
 
-So: indexes + models + QA come straight from HF; the 13T tile corpus is regenerated from the
-public Wikipedia ZIM (not downloaded), which is the only piece that needs the render pipeline.
+So: indexes, tiles, models, and QA all come straight from HF; the tile corpus can also be
+regenerated from the public Wikipedia ZIM via the render pipeline.
+
+### Three ways to run retrieval + supply the tile images
+
+The reader always asks the serve for images (`include_images`), so the retrieved tiles can
+reach it three ways — pick one:
+
+1. **Self-hosted serve, index + tiles.** `serve_up.sh` downloads the FAISS index and the tile
+   corpus (`StarTrail-org/pixelrag-tiles`, or rendered from the ZIM). The serve returns each
+   retrieved tile inline as base64; or set `TILES_DIR` to read the tiles from the reader's
+   local disk instead. Full self-host.
+2. **Public API (no self-hosting).** Point the retrieval URL at the public endpoint
+   (`api.ds-serve.org` / `api.pixelrag.ai`) instead of a local serve. It returns base64 tiles,
+   so you only run the reader + grader — no index, no tile corpus.
+3. **Self-hosted serve, index + on-demand render.** Run the serve with the index but **no** tile
+   corpus, started with an on-demand renderer; it renders each retrieved page to tiles at query
+   time and returns them as base64. Needs the kiwix ZIM, not the ~4T corpus.
+
+In modes 2 and 3 the reader needs no local tiles, so leave `TILES_DIR` empty.
 
 ## 3. Run a cell
 
@@ -69,17 +85,16 @@ serve(s) that *this* cell needs and checks each is up with the expected index (`
 `total_vectors`). If a serve is down / on the wrong port / wrong index, it prints the exact
 `pixelrag serve --index-dir … --port …` command to launch it and exits (no silent empty run).
 
-Per-cell config is locked inside `reproduce.sh` (verified against the paper's saved
-response metadata, not the experiment scripts):
+Per-cell config is locked inside `reproduce.sh`:
 
 | bench | think | max_tokens | n | grader | notes |
 |-------|-------|-----------|---|--------|-------|
-| nq / nqt | no-think | 200 | 1000 / 1068 | exact-match | |
+| nq / nqt | no-think | 200 | 1000 / all | exact-match | |
 | sqa | no-think | 200 | 1000 | SimpleQA judge | nprobe 2000 |
-| mms (base/lora/traf) | **think** | 16384 | 300 | WorldVQA judge | pixel instr = V1 "Retrieve images or text relevant to the user's query." (NOT promptG) |
-| mms (naive) | no-think | 200 | 300 | WorldVQA judge | |
-| evqa | no-think | 16384 | 749 | WorldVQA judge | **landmarks + question_type=automatic only**; iNaturalist & templated/multi_answer excluded |
-| livevqa (naive/base) | no-think | 16 | 26888 | MCQ exact-match | news pipeline `run_livevqa.py` |
+| mms (base/lora/traf) | **think** | 16384 | all | WorldVQA judge | pixel instr = V1 "Retrieve images or text relevant to the user's query." |
+| mms (naive) | no-think | 200 | all | WorldVQA judge | |
+| evqa | no-think | 16384 | all | WorldVQA judge | **landmarks + question_type=automatic only**; iNaturalist & templated/multi_answer excluded |
+| livevqa (naive/base) | no-think | 16 | all | MCQ exact-match | news pipeline `run_livevqa.py` |
 
 ## 4. Published numbers (for your own comparison — NOT used by the script)
 
@@ -94,19 +109,14 @@ Paper Table 1 (Qwen3.5-4B, k=3):
 | MMSearch | 12.7 | 24.7 | 28.3 | 28.3 |
 | EVQA (lm/auto) | 27.2 | 29.6 | 40.7 | 45.1 |
 
-On H100, this harness reproduces every pixel cell (LiveVQA/MMS/EVQA base+lora) within ~1pp.
-The MMS/EVQA grader (`gpt-4.1-2025-04-14`, temp 0) has ~2–6pp run-to-run noise, so re-grading
-even the paper's own responses wanders by that much.
+On H100, this harness reproduces the pixel cells (LiveVQA/MMS/EVQA base+lora) within ~1pp.
 
-NOTE on traf (text retrieval): the paper kept text retrieval **text-only** (it did NOT send the
-query image to the text serve — the "add query image to text retrieval" change existed but was
-not used in the paper). `reproduce.sh` therefore passes `--no-query-image` for traf. An earlier
-run WITHOUT it sent the landmark photo to the text serve, ~2x'd EVQA-traf retrieval recall
-(9.1% vs 4.8%) and read ~+4pp high — that was a config bug on our side, not "better retrieval".
+NOTE on traf (text retrieval): `reproduce.sh` passes `--no-query-image` to match the paper's
+text-only text retrieval.
 
 ## 5. Grader
 
-`eval/lib/grader.py` (migrated, byte-faithful to the paper's `evaluate.py` + `worldvqa_eval`):
+`eval/lib/grader.py` (faithful to the paper's grading procedure):
 - WorldVQA judge (mmsearch / encyclopedic_vqa): prompt verbatim, GT for EVQA =
   `"Any of: " + " | ".join(reference_list)` (any reference matches → correct), `<think>` stripped,
   judge gpt-4.1 temp 0 + `system="You are a helpful assistant."` + `seed=42` + `max_tokens=1000`.

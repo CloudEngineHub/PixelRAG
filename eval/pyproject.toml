@@ -1,12 +1,10 @@
 [project]
 name = "pixelrag-repro"
 version = "0.1.0"
-description = "Reproduction harness for the PixelRAG (Vis-RAG) paper Table 1 — drives the paper's own run_naive_simpleqa.py + evaluate.py against live retrieval/reader serves."
+description = "Self-contained reproduction harness for PixelRAG paper Table 1 — runs retrieval + reader + grader against live serves and prints the score."
 requires-python = ">=3.12,<3.13"
-# These are the deps the paper's API-path code (scripts/run_naive_simpleqa.py,
-# scripts/simpleqa, scripts/evaluate.py, evaluation/*) imports when retrieval + reader
-# run as remote HTTP serves (no local torch/vllm needed -- the model serves are separate).
-# The paper repo itself is pinned in REPRODUCE.md (yichuan-w/Vis-RAG @ e591fd0).
+# Deps for the API-path harness (run_bench.py + lib/): retrieval and reader run as
+# remote HTTP serves, so no local torch/vllm is needed here.
 dependencies = [
     "aiohttp==3.13.5",
     "datasets==4.8.5",

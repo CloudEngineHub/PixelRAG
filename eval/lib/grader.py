@@ -1,9 +1,7 @@
 """Self-contained LLM-as-judge grader for the PixelRAG reproduction.
 
-Migrated from the paper's evaluation/worldvqa_eval/worldvqa_eval.py + evaluate.py
-(the encyclopedic_vqa / mmsearch / worldvqa path) so the eval pipeline does not
-depend on the old dr-agent (Vis-RAG) repo. Behaviour is byte-faithful to the
-paper grader:
+Implements the paper's evaluation path (encyclopedic_vqa / mmsearch / worldvqa) as a
+standalone module. Behaviour is faithful to the paper grader:
 
 - Judge prompt = JUDGE_WORLDQA_PROMPT_EN (verbatim from MoonshotAI/WorldVQA),
   loaded from eval/repro_assets/judge_worldvqa_prompt.txt.
