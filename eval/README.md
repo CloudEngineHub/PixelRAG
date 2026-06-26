@@ -88,6 +88,9 @@ In modes 2 and 3 the reader needs no local tiles, so leave `TILES_DIR` empty.
 - Tiles for the reader: either the full corpus at `TILES_DIR` (mode 1), or start the serve with
   `--render-on-demand --kiwix-url <kiwix-serve>` so it renders only the retrieved pages from a
   kiwix ZIM (mode 3) — no ~4T corpus.
+- On-demand render (mode 3) is slow (one page rendered per retrieved tile). Raise the retrieval
+  client timeout so a batch doesn't time out into an empty (closed-book) result:
+  `PIXELRAG_RETRIEVAL_TIMEOUT=7200`.
 
 ## 3. Run a cell
 

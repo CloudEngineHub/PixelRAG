@@ -17,6 +17,12 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
+# POST timeout (seconds) for a retrieval call to the search serve. The default suits a fast
+# serve; raise it for a slow one — e.g. on-demand render, where a batch can take minutes:
+# `PIXELRAG_RETRIEVAL_TIMEOUT=7200`. Otherwise the request times out, the batch is cached
+# empty, and the reader silently falls back to closed-book (looks like a bad score, not an error).
+_RETRIEVAL_TIMEOUT = float(os.environ.get("PIXELRAG_RETRIEVAL_TIMEOUT", "600"))
+
 
 @dataclass
 class RetrievalResult:
@@ -2223,7 +2229,7 @@ class LocalAPIRetriever(BaseRetriever):
                     async with session.post(
                         self.api_url,
                         json=payload,
-                        timeout=aiohttp.ClientTimeout(total=600),
+                        timeout=aiohttp.ClientTimeout(total=_RETRIEVAL_TIMEOUT),
                     ) as response:
                         if response.status != 200:
                             error_text = await response.text()
@@ -2917,7 +2923,7 @@ class TextAPIRetriever(BaseRetriever):
                     async with session.post(
                         self.api_url,
                         json=payload,
-                        timeout=aiohttp.ClientTimeout(total=600),
+                        timeout=aiohttp.ClientTimeout(total=_RETRIEVAL_TIMEOUT),
                     ) as response:
                         if response.status != 200:
                             error_text = await response.text()
