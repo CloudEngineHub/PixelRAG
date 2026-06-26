@@ -39,13 +39,14 @@ logger = logging.getLogger("pixelrag_render.backends.fast_cdp")
 VIEWPORT_WIDTH = 875
 TILE_HEIGHT = 8192
 
-# GPU rasterization needs GPU device access (the `render` group on lab machines). Without it
-# (or headless with no GPU compositor) it crashes the renderer — set PIXELSHOT_DISABLE_GPU=1
-# to fall back to CPU rasterization.
+# Default to CPU rasterization (works on GPU-less / headless boxes — the common case).
+# GPU rasterization needs real GPU device access (graphics GPU + the `render` group); without
+# it the renderer crashes. On a configured GPU render box, set PIXELSHOT_ENABLE_GPU=1 (~2x,
+# but it can produce blank captures — verify output).
 _GPU_ARGS = (
-    ["--disable-gpu"]
-    if os.environ.get("PIXELSHOT_DISABLE_GPU")
-    else ["--enable-gpu-rasterization", "--force-gpu-rasterization"]
+    ["--enable-gpu-rasterization", "--force-gpu-rasterization"]
+    if os.environ.get("PIXELSHOT_ENABLE_GPU")
+    else ["--disable-gpu"]
 )
 CHROME_ARGS = [
     "--no-sandbox",
