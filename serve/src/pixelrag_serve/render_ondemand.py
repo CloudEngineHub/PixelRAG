@@ -69,26 +69,26 @@ class OnDemandTiles:
         staging = os.path.join(self.cache_dir, f".render_{article_id}")
         shutil.rmtree(staging, ignore_errors=True)
         os.makedirs(staging, exist_ok=True)
-        # Render in a SEPARATE PROCESS. render_url internally uses asyncio.run() +
-        # multiprocessing.Pool (fork); calling it a second time in this long-lived
-        # serve process deadlocks (fork-in-threaded-process). A fresh subprocess per
-        # render is the reliable fix — verified: same-process 2nd render hangs, a
-        # fresh process per render does not.
-        code = (
-            "import sys; from pixelrag_render import render_url; "
-            "render_url(sys.argv[1], sys.argv[2], "
-            "viewport_width=int(sys.argv[3]), tile_height=int(sys.argv[4]))"
-        )
+        # Render in a SEPARATE PROCESS via the pixelshot CLI. render_url internally uses
+        # asyncio.run() + multiprocessing.Pool (fork); calling it a second time in this
+        # long-lived serve process deadlocks (fork-in-threaded-process). A fresh subprocess
+        # per render is the reliable fix — verified: same-process 2nd render hangs, a fresh
+        # process per render does not.
         try:
             subprocess.run(
                 [
                     sys.executable,
-                    "-c",
-                    code,
+                    "-m",
+                    "pixelrag_render.render",
                     url,
+                    "--output",
                     staging,
+                    "--viewport-width",
                     str(self.viewport_width),
+                    "--tile-height",
                     str(self.tile_height),
+                    "--workers",
+                    "1",
                 ],
                 check=True,
                 timeout=_RENDER_TIMEOUT,
