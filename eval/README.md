@@ -77,6 +77,18 @@ reach it three ways — pick one:
 
 In modes 2 and 3 the reader needs no local tiles, so leave `TILES_DIR` empty.
 
+**Self-hosting the search serve (modes 1 & 3) — what you need:**
+- `pip install -e '..[serve]'` (faiss + torch/torchvision + transformers + the query encoder
+  `Qwen/Qwen3-VL-Embedding-2B`). This is **separate from the eval client and the reader** — a
+  CUDA GPU box with plenty of RAM.
+- The FAISS index: `search_index_normed_v2` (~217G download from `StarTrail-org/pixelrag-faiss-indexes`,
+  ~220G RAM to load — `serve_up.sh` fetches it).
+- `articles.json` (the article-id → wiki-slug map the serve needs to resolve hit URLs) lives in
+  the **`StarTrail-org/pixelrag-tiles`** dataset, not the faiss-indexes one.
+- Tiles for the reader: either the full corpus at `TILES_DIR` (mode 1), or start the serve with
+  `--render-on-demand --kiwix-url <kiwix-serve>` so it renders only the retrieved pages from a
+  kiwix ZIM (mode 3) — no ~4T corpus.
+
 ## 3. Run a cell
 
 ```bash
