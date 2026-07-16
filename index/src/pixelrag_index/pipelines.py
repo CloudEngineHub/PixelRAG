@@ -11,6 +11,28 @@ from .config import load_config, make_source
 logger = logging.getLogger("pixelrag-index")
 
 
+def _department_of(article: dict, source_root: str) -> str:
+    """Department = first sub-directory under the source root holding the file.
+
+    Files directly under the root, non-local documents (web URLs), or paths
+    outside the root have no department ("").
+    """
+    raw = article.get("path") or ""
+    if not raw:
+        url = article.get("url") or ""
+        if url.startswith("file://"):
+            from urllib.parse import unquote, urlparse
+
+            raw = unquote(urlparse(url).path)
+    if not raw or not source_root:
+        return ""
+    try:
+        rel = Path(raw).resolve().relative_to(Path(source_root).expanduser().resolve())
+    except ValueError:
+        return ""
+    return rel.parts[0] if len(rel.parts) > 1 else ""
+
+
 def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
     """Build a searchable FAISS index from a document source.
 
@@ -174,6 +196,9 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
     # Render PDFs — use idx as tile directory name (like URLs) so directory
     # names are always the numeric article_id.
     for idx, doc in pdf_docs:
+        out_dir = tiles_dir / f"{idx}.png.tiles"
+        if (out_dir / "tiles.json").exists():
+            continue  # already rendered on a previous run
         try:
             render_pdf(doc.path, str(tiles_dir), stem=str(idx))
         except Exception as e:
@@ -238,6 +263,7 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
     # as doc IDs, which are not numeric. int() on a filename stem raises ValueError
     # and crashes the entire index build step.
     articles_path = output / "articles.json"
+    source_root = str(config.get("source", {}).get("path", "") or "")
     article_entries = []
     for enum_idx, a in enumerate(articles):
         title = a.get("metadata", {}).get("title", "")
@@ -247,7 +273,11 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
             # Fall back to original doc id (e.g. filename stem) as display title
             title = a.get("id", str(enum_idx))
         url = a.get("url", "") or a.get("path", "")
-        article_entries.append({"title": title, "url": url})
+        # Department (from the directory layout of local sources) enables
+        # server-side filtered search; empty string means "no department".
+        article_entries.append(
+            {"title": title, "url": url, "department": _department_of(a, source_root)}
+        )
     with open(articles_path, "w") as f:
         json.dump(article_entries, f)
     logger.info(
