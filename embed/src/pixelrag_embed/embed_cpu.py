@@ -203,9 +203,6 @@ def embed_items(
             pooled = pooled / pooled.norm()
             embeddings[i] = pooled.cpu().numpy().astype(np.float16)
 
-        if (i + 1) % 10 == 0:
-            logger.info("Embedded %d/%d", i + 1, len(items))
-
     return embeddings
 
 

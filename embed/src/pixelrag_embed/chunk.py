@@ -36,6 +36,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 from PIL import Image
+from tqdm import tqdm
 
 Image.MAX_IMAGE_PIXELS = None  # some tiles exceed default 178M pixel limit
 
@@ -307,21 +308,27 @@ def process_shard(
         # Flat structure — article dirs directly in shard_dir
         sub_dirs = [Path(shard_dir)]
 
-    for sub_dir in sub_dirs:
-        for article_dir in sorted(sub_dir.iterdir()):
-            if not article_dir.is_dir() or not article_dir.name.endswith(".png.tiles"):
-                continue
-            total_articles += 1
+    all_article_dirs = [
+        article_dir
+        for sub_dir in sub_dirs
+        for article_dir in sorted(sub_dir.iterdir())
+        if article_dir.is_dir() and article_dir.name.endswith(".png.tiles")
+    ]
 
-            result = chunk_article(str(article_dir), dry_run=dry_run, force=force)
-            if result is None:
-                skipped_articles += 1
-                continue
+    for article_dir in tqdm(
+        all_article_dirs, desc="Chunking", disable=not all_article_dirs
+    ):
+        total_articles += 1
 
-            chunked_articles += 1
-            total_tiles += result["num_tiles"]
-            total_chunks += result["num_chunks"]
-            total_files += result["files_written"]
+        result = chunk_article(str(article_dir), dry_run=dry_run, force=force)
+        if result is None:
+            skipped_articles += 1
+            continue
+
+        chunked_articles += 1
+        total_tiles += result["num_tiles"]
+        total_chunks += result["num_chunks"]
+        total_files += result["files_written"]
 
     # Delete tiles after chunking the whole shard
     tiles_deleted = 0
